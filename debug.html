@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF デバッグテスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffe6e6; color: #d00; }
+        .success { background: #e6ffe6; color: #060; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 LIFF デバッグテスト</h1>
+    
+    <div id="logs"></div>
+    
+    <button onclick="testStep1()">1. LIFF初期化テスト</button>
+    <button onclick="testStep2()">2. プロフィール取得テスト</button>
+    <button onclick="testStep3()">3. サーバー接続テスト</button>
+    <button onclick="testStep4()">4. 実際のデータ送信テスト</button>
+    
+    <hr>
+    <h3>設定確認</h3>
+    <div id="config" class="log"></div>
+
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+        const LIFF_ID = '2007941209-AE20r8rK';
+        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbxr7tKZ8EDRFm0oJ6SKzfqy4qaEic_oJSJhg_ByuQeX_ZkROi0v57OtQbNv19ZKQY6m1g/exec';
+        
+        let userProfile = null;
+        let currentToken = null;
+        
+        function log(message, type = 'log') {
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            logsDiv.appendChild(logDiv);
+            console.log(message);
+        }
+        
+        // 設定確認
+        document.getElementById('config').innerHTML = `
+            <strong>LIFF ID:</strong> ${LIFF_ID}<br>
+            <strong>Server URL:</strong> ${SERVER_URL}<br>
+            <strong>現在のURL:</strong> ${location.href}<br>
+            <strong>User Agent:</strong> ${navigator.userAgent}
+        `;
+        
+        // URLパラメータからtokenを取得
+        const urlParams = new URLSearchParams(window.location.search);
+        currentToken = urlParams.get('token');
+        log(`Token from URL: ${currentToken || 'なし'}`);
+        
+        async function testStep1() {
+            try {
+                log('LIFF初期化開始...');
+                await liff.init({ liffId: LIFF_ID });
+                log('LIFF初期化完了 ✅', 'success');
+                
+                log(`isLoggedIn: ${liff.isLoggedIn()}`);
+                log(`isInClient: ${liff.isInClient()}`);
+                log(`getOS: ${liff.getOS()}`);
+                
+            } catch (error) {
+                log(`LIFF初期化エラー: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        async function testStep2() {
+            try {
+                if (!liff.isLoggedIn()) {
+                    log('ログインが必要です', 'error');
+                    return;
+                }
+                
+                log('プロフィール取得中...');
+                userProfile = await liff.getProfile();
+                log(`プロフィール取得完了 ✅`, 'success');
+                log(`ユーザー名: ${userProfile.displayName}`);
+                log(`ユーザーID: ${userProfile.userId.substring(0, 20)}...`);
+                
+            } catch (error) {
+                log(`プロフィール取得エラー: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        async function testStep3() {
+            try {
+                log('サーバー接続テスト開始...');
+                
+                const response = await fetch(SERVER_URL + '?cid=COMPANY01', {
+                    method: 'GET'
+                });
+                
+                log(`HTTP Status: ${response.status}`);
+                log(`Response OK: ${response.ok}`);
+                
+                const text = await response.text();
+                log(`レスポンス長: ${text.length} 文字`);
+                
+                if (text.includes('LIFF URL')) {
+                    log('サーバー接続テスト 成功 ✅', 'success');
+                } else {
+                    log('予期しないレスポンス', 'error');
+                }
+                
+            } catch (error) {
+                log(`サーバー接続エラー: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        async function testStep4() {
+            try {
+                if (!userProfile) {
+                    log('まずプロフィール取得テストを実行してください', 'error');
+                    return;
+                }
+                
+                if (!currentToken) {
+                    log('URLにtokenパラメータがありません', 'error');
+                    return;
+                }
+                
+                log('実際のデータ送信テスト開始...');
+                
+                const testData = {
+                    token: currentToken,
+                    lineUserId: userProfile.userId,
+                    displayName: userProfile.displayName
+                };
+                
+                log(`送信データ: ${JSON.stringify(testData, null, 2)}`);
+                
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                log(`HTTP Status: ${response.status}`);
+                log(`Response OK: ${response.ok}`);
+                
+                const result = await response.json();
+                log(`レスポンス: ${JSON.stringify(result, null, 2)}`);
+                
+                if (result.success) {
+                    log('データ送信テスト 成功 ✅', 'success');
+                } else {
+                    log(`サーバーエラー: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`データ送信エラー: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+        
+        // 自動初期化
+        window.addEventListener('load', testStep1);
+    </script>
+</body>
+</html>
