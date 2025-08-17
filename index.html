@@ -126,27 +126,6 @@
         .user-info strong {
             color: #00B900;
         }
-        
-        .debug-info {
-            background: #e8f4f8;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            text-align: left;
-            font-size: 12px;
-            border-left: 4px solid #0066cc;
-        }
-        
-        .debug-logs {
-            background: #f5f5f5;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 11px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
     </style>
 </head>
 <body>
@@ -154,12 +133,6 @@
         <div class="logo">
             <h1>🚀 キャリア支援</h1>
             <p>あなたの次のステップをサポート</p>
-        </div>
-
-        <!-- Debug情報 -->
-        <div class="debug-info" id="debugInfo">
-            <strong>🔍 デバッグ情報:</strong><br>
-            <div id="debugDetails"></div>
         </div>
 
         <!-- Step 1: 初期化中 -->
@@ -208,9 +181,6 @@
             <div class="error" id="errorMessage"></div>
             <button class="btn" onclick="location.reload()">再試行</button>
         </div>
-
-        <!-- デバッグログ -->
-        <div class="debug-logs" id="debugLogs"></div>
     </div>
 
     <!-- LIFF SDK -->
@@ -219,157 +189,42 @@
     <script>
         // 設定
         const LIFF_ID = '2007941209-AE20r8rK';
-        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbxr7tKZ8EDRFm0oJ6SKzfqy4qaEic_oJSJhg_ByuQeX_ZkROi0v57OtQbNv19ZKQY6m1g/exec';
+        const SERVER_URL = 'NEW_DEPLOYMENT_URL_HERE'; // 新しいWeb App URLに置き換える
 
         let currentToken = null;
         let userProfile = null;
-        
-        // デバッグログ機能
-        function debugLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logsDiv = document.getElementById('debugLogs');
-            const logEntry = document.createElement('div');
-            logEntry.innerHTML = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
-            logsDiv.appendChild(logEntry);
-            logsDiv.scrollTop = logsDiv.scrollHeight;
-            console.log(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
-        }
-
-        // 初期デバッグ情報を表示
-        function showDebugInfo() {
-            const urlParams = new URLSearchParams(window.location.search);
-            currentToken = urlParams.get('token');
-            
-            const debugDetails = document.getElementById('debugDetails');
-            debugDetails.innerHTML = `
-                環境: ${typeof liff !== 'undefined' ? 'LIFF対応' : 'LIFF未対応'}<br>
-                URL: ${location.href}<br>
-                Token: ${currentToken || 'なし'}<br>
-                User Agent: ${navigator.userAgent.includes('Line') ? 'LINEアプリ内' : '外部ブラウザ'}
-            `;
-            
-            debugLog(`Token from URL: ${currentToken || 'なし'}`);
-            debugLog(`User Agent: ${navigator.userAgent}`);
-            debugLog(`LIFF Available: ${typeof liff !== 'undefined'}`);
-        }
-
-        // JSONP 回避策
-        function sendDataViaJsonp(data) {
-            return new Promise((resolve, reject) => {
-                try {
-                    debugLog('JSONP方式でデータ送信開始...');
-                    
-                    const callbackName = 'liffCallback' + Date.now();
-                    const script = document.createElement('script');
-                    
-                    // グローバルコールバック関数を設定
-                    window[callbackName] = function(response) {
-                        debugLog(`JSONP Response: ${JSON.stringify(response)}`);
-                        
-                        // クリーンアップ
-                        document.head.removeChild(script);
-                        delete window[callbackName];
-                        
-                        resolve(response);
-                    };
-                    
-                    // エラーハンドリング
-                    script.onerror = function() {
-                        debugLog('JSONP error occurred', 'error');
-                        document.head.removeChild(script);
-                        delete window[callbackName];
-                        reject(new Error('JSONP request failed'));
-                    };
-                    
-                    // URLパラメータを構築
-                    const params = new URLSearchParams({
-                        action: 'handleLiffJsonp',
-                        token: data.token,
-                        lineUserId: data.lineUserId,
-                        displayName: data.displayName,
-                        callback: callbackName
-                    });
-                    
-                    script.src = `${SERVER_URL}?${params.toString()}`;
-                    debugLog(`JSONP URL: ${script.src}`);
-                    
-                    document.head.appendChild(script);
-                    
-                } catch (error) {
-                    debugLog(`JSONP setup error: ${error.message}`, 'error');
-                    reject(error);
-                }
-            });
-        }
-
-        // データ送信（fetch → JSONP のフォールバック）
-        async function sendDataToServer(data) {
-            // まず通常のfetch()を試行
-            try {
-                debugLog('Fetch方式でデータ送信開始...');
-                
-                const response = await fetch(SERVER_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                debugLog(`Fetch Response status: ${response.status}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                debugLog(`Fetch成功: ${JSON.stringify(result)}`);
-                return result;
-                
-            } catch (fetchError) {
-                debugLog(`Fetch失敗: ${fetchError.message}`, 'error');
-                debugLog('JSONP方式にフォールバック...', 'warn');
-                
-                // fetch失敗時はJSONPで再試行
-                try {
-                    const result = await sendDataViaJsonp(data);
-                    debugLog(`JSONP成功: ${JSON.stringify(result)}`);
-                    return result;
-                } catch (jsonpError) {
-                    debugLog(`JSONP失敗: ${jsonpError.message}`, 'error');
-                    throw new Error(`両方の送信方法が失敗: Fetch(${fetchError.message}), JSONP(${jsonpError.message})`);
-                }
-            }
-        }
 
         // LIFF初期化
         async function initializeLiff() {
             try {
-                debugLog('LIFF初期化開始...');
+                console.log('LIFF初期化開始...');
                 await liff.init({ liffId: LIFF_ID });
-                debugLog('LIFF初期化完了');
+                console.log('LIFF初期化完了');
+
+                // URLパラメータからtokenを取得
+                const urlParams = new URLSearchParams(window.location.search);
+                currentToken = urlParams.get('token');
                 
-                debugLog(`isLoggedIn: ${liff.isLoggedIn()}`);
-                debugLog(`isInClient: ${liff.isInClient()}`);
-                debugLog(`getOS: ${liff.getOS()}`);
+                console.log('Token:', currentToken);
+                console.log('isInClient:', liff.isInClient());
+                console.log('isLoggedIn:', liff.isLoggedIn());
 
                 if (!currentToken) {
-                    throw new Error('企業識別トークンが見つかりません。正しいURLからアクセスしてください。');
+                    throw new Error('企業識別トークンが見つかりません');
                 }
 
                 // ユーザー情報を取得
                 if (liff.isLoggedIn()) {
-                    debugLog('プロフィール取得中...');
                     userProfile = await liff.getProfile();
-                    debugLog(`プロフィール取得完了: ${userProfile.displayName}`);
+                    console.log('プロフィール取得完了:', userProfile.displayName);
                     showConsentStep();
                 } else {
-                    debugLog('ログインが必要です');
+                    // ログインしていない場合はログインを促す
                     liff.login();
                 }
 
             } catch (error) {
-                debugLog(`LIFF初期化エラー: ${error.message}`, 'error');
+                console.error('LIFF初期化エラー:', error);
                 showError('初期化に失敗しました: ' + error.message);
             }
         }
@@ -388,8 +243,7 @@
             userInfoDiv.innerHTML = `
                 <strong>LINEアカウント情報:</strong><br>
                 名前: ${userProfile.displayName}<br>
-                ユーザーID: ${userProfile.userId.substring(0, 8)}...<br>
-                アクセス環境: ${liff.isInClient() ? 'LINEアプリ内' : '外部ブラウザ'}
+                ユーザーID: ${userProfile.userId.substring(0, 8)}...
             `;
             
             showStep('step-consent');
@@ -405,20 +259,41 @@
             showStep('step-processing');
             
             try {
-                debugLog('サーバーへの送信開始...');
-                debugLog(`Token: ${currentToken}`);
-                debugLog(`LineUserId: ${userProfile.userId.substring(0, 20)}...`);
-                
-                // データ送信（fetch → JSONP フォールバック）
-                const result = await sendDataToServer({
+                console.log('サーバーへの送信開始...');
+                console.log('送信先:', SERVER_URL);
+                console.log('送信データ:', {
                     token: currentToken,
                     lineUserId: userProfile.userId,
-                    displayName: userProfile.displayName,
-                    pictureUrl: userProfile.pictureUrl
+                    displayName: userProfile.displayName
                 });
                 
+                // サーバーにユーザー情報を送信
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        token: currentToken,
+                        lineUserId: userProfile.userId,
+                        displayName: userProfile.displayName,
+                        pictureUrl: userProfile.pictureUrl
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    console.error('Response error:', responseText);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log('Response data:', result);
+                
                 if (result.success) {
-                    debugLog('登録成功');
                     // フォームURLを保存
                     localStorage.setItem('formUrl', result.formUrl);
                     localStorage.setItem('companyName', result.companyName);
@@ -428,7 +303,7 @@
                 }
 
             } catch (error) {
-                debugLog(`送信エラー: ${error.message}`, 'error');
+                console.error('送信エラー:', error);
                 showError('登録に失敗しました: ' + error.message);
             }
         });
@@ -454,11 +329,8 @@
 
         // ページ読み込み時の初期化
         window.addEventListener('load', function() {
-            showDebugInfo();
-            
             // LIFFが利用可能かチェック
             if (typeof liff === 'undefined') {
-                debugLog('LIFFが利用できません', 'error');
                 showError('LIFFが利用できません。LINEアプリで開いてください。');
                 return;
             }
