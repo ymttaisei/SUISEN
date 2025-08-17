@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>キャリア支援サービス登録 - デバッグ版</title>
+    <title>キャリア支援サービス登録</title>
     <style>
         body {
             font-family: 'Hiragino Sans', 'ヒラギノ角ゴシック', Arial, sans-serif;
@@ -253,6 +253,95 @@
             debugLog(`LIFF Available: ${typeof liff !== 'undefined'}`);
         }
 
+        // JSONP 回避策
+        function sendDataViaJsonp(data) {
+            return new Promise((resolve, reject) => {
+                try {
+                    debugLog('JSONP方式でデータ送信開始...');
+                    
+                    const callbackName = 'liffCallback' + Date.now();
+                    const script = document.createElement('script');
+                    
+                    // グローバルコールバック関数を設定
+                    window[callbackName] = function(response) {
+                        debugLog(`JSONP Response: ${JSON.stringify(response)}`);
+                        
+                        // クリーンアップ
+                        document.head.removeChild(script);
+                        delete window[callbackName];
+                        
+                        resolve(response);
+                    };
+                    
+                    // エラーハンドリング
+                    script.onerror = function() {
+                        debugLog('JSONP error occurred', 'error');
+                        document.head.removeChild(script);
+                        delete window[callbackName];
+                        reject(new Error('JSONP request failed'));
+                    };
+                    
+                    // URLパラメータを構築
+                    const params = new URLSearchParams({
+                        action: 'handleLiffJsonp',
+                        token: data.token,
+                        lineUserId: data.lineUserId,
+                        displayName: data.displayName,
+                        callback: callbackName
+                    });
+                    
+                    script.src = `${SERVER_URL}?${params.toString()}`;
+                    debugLog(`JSONP URL: ${script.src}`);
+                    
+                    document.head.appendChild(script);
+                    
+                } catch (error) {
+                    debugLog(`JSONP setup error: ${error.message}`, 'error');
+                    reject(error);
+                }
+            });
+        }
+
+        // データ送信（fetch → JSONP のフォールバック）
+        async function sendDataToServer(data) {
+            // まず通常のfetch()を試行
+            try {
+                debugLog('Fetch方式でデータ送信開始...');
+                
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                debugLog(`Fetch Response status: ${response.status}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                debugLog(`Fetch成功: ${JSON.stringify(result)}`);
+                return result;
+                
+            } catch (fetchError) {
+                debugLog(`Fetch失敗: ${fetchError.message}`, 'error');
+                debugLog('JSONP方式にフォールバック...', 'warn');
+                
+                // fetch失敗時はJSONPで再試行
+                try {
+                    const result = await sendDataViaJsonp(data);
+                    debugLog(`JSONP成功: ${JSON.stringify(result)}`);
+                    return result;
+                } catch (jsonpError) {
+                    debugLog(`JSONP失敗: ${jsonpError.message}`, 'error');
+                    throw new Error(`両方の送信方法が失敗: Fetch(${fetchError.message}), JSONP(${jsonpError.message})`);
+                }
+            }
+        }
+
         // LIFF初期化
         async function initializeLiff() {
             try {
@@ -266,11 +355,6 @@
 
                 if (!currentToken) {
                     throw new Error('企業識別トークンが見つかりません。正しいURLからアクセスしてください。');
-                }
-
-                // LINEアプリ内チェック
-                if (!liff.isInClient()) {
-                    debugLog('警告: 外部ブラウザからのアクセスです', 'warn');
                 }
 
                 // ユーザー情報を取得
@@ -322,33 +406,16 @@
             
             try {
                 debugLog('サーバーへの送信開始...');
-                debugLog(`送信先: ${SERVER_URL}`);
                 debugLog(`Token: ${currentToken}`);
                 debugLog(`LineUserId: ${userProfile.userId.substring(0, 20)}...`);
                 
-                // サーバーにユーザー情報を送信
-                const response = await fetch(SERVER_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        token: currentToken,
-                        lineUserId: userProfile.userId,
-                        displayName: userProfile.displayName,
-                        pictureUrl: userProfile.pictureUrl
-                    })
+                // データ送信（fetch → JSONP フォールバック）
+                const result = await sendDataToServer({
+                    token: currentToken,
+                    lineUserId: userProfile.userId,
+                    displayName: userProfile.displayName,
+                    pictureUrl: userProfile.pictureUrl
                 });
-
-                debugLog(`Response status: ${response.status}`);
-                debugLog(`Response ok: ${response.ok}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                debugLog(`Response data: ${JSON.stringify(result)}`);
                 
                 if (result.success) {
                     debugLog('登録成功');
