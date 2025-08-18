@@ -3,339 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>キャリア支援サービス登録</title>
+    <title>超シンプル LIFF テスト</title>
     <style>
-        body {
-            font-family: 'Hiragino Sans', 'ヒラギノ角ゴシック', Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-        
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .logo h1 {
-            color: #00B900;
-            font-size: 24px;
-            margin: 0;
-        }
-        
-        .step {
-            display: none;
-            text-align: center;
-        }
-        
-        .step.active {
-            display: block;
-        }
-        
-        .loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 0;
-        }
-        
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #00B900;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .btn {
-            background: #00B900;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 20px;
-            transition: background 0.3s;
-        }
-        
-        .btn:hover {
-            background: #009900;
-        }
-        
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .consent-text {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.6;
-            margin: 20px 0;
-            border-left: 4px solid #00B900;
-        }
-        
-        .error {
-            background: #ffe6e6;
-            color: #d00;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border-left: 4px solid #d00;
-        }
-        
-        .success {
-            background: #e6ffe6;
-            color: #060;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border-left: 4px solid #060;
-        }
-        
-        .user-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            text-align: left;
-        }
-        
-        .user-info strong {
-            color: #00B900;
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .btn { padding: 15px 20px; background: #00B900; color: white; border: none; border-radius: 5px; margin: 10px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">
-            <h1>🚀 キャリア支援</h1>
-            <p>あなたの次のステップをサポート</p>
-        </div>
+    <h1>🧪 超シンプル LIFF テスト</h1>
+    
+    <button class="btn" onclick="testConnection()">接続テスト</button>
+    <button class="btn" onclick="clearLogs()">ログクリア</button>
+    
+    <div id="logs"></div>
 
-        <!-- Step 1: 初期化中 -->
-        <div class="step active" id="step-loading">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>初期化中...</p>
-            </div>
-        </div>
-
-        <!-- Step 2: 同意確認 -->
-        <div class="step" id="step-consent">
-            <h2>サービス利用について</h2>
-            <div id="userInfo" class="user-info"></div>
-            <div class="consent-text">
-                <strong>個人情報の取り扱いについて</strong><br>
-                • お名前、メールアドレス等の個人情報を収集します<br>
-                • 収集した情報はキャリア支援サービス提供のみに使用します<br>
-                • 紹介元企業と情報を共有する場合があります<br>
-                • LINEアカウント情報と連携します
-            </div>
-            <button class="btn" id="consentBtn">同意してLINE連携する</button>
-        </div>
-
-        <!-- Step 3: 処理中 -->
-        <div class="step" id="step-processing">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>登録処理中...</p>
-            </div>
-        </div>
-
-        <!-- Step 4: 完了 -->
-        <div class="step" id="step-complete">
-            <h2>✅ LINE連携完了</h2>
-            <div class="success">
-                <p>LINE連携が完了しました！<br>
-                詳細情報の入力を続けてください。</p>
-            </div>
-            <button class="btn" id="continueBtn">詳細情報を入力する</button>
-        </div>
-
-        <!-- エラー表示 -->
-        <div class="step" id="step-error">
-            <h2>❌ エラー</h2>
-            <div class="error" id="errorMessage"></div>
-            <button class="btn" onclick="location.reload()">再試行</button>
-        </div>
-    </div>
-
-    <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
     <script>
-        // 設定
-        const LIFF_ID = '2007941209-AE20r8rK';
-        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbylsOXURcUHOwGZVitiWCH8I4EymOrHCYYtYi9S7TJaiYfXQgMVQ454DWeM5kTLTPpxZA/exec'; // 新しいWeb App URLに置き換える
-
-        let currentToken = null;
-        let userProfile = null;
-
-        // LIFF初期化
-        async function initializeLiff() {
+        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbylsOXURcUHOwGZVitiWCH8I4EymOrHCYYtYi9S7TJaiYfXQgMVQ454DWeM5kTLTPpxZA/exec';
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logsDiv = document.getElementById('logs');
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log';
+            logDiv.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logDiv);
+            console.log(message);
+        }
+        
+        async function testConnection() {
             try {
-                console.log('LIFF初期化開始...');
-                await liff.init({ liffId: LIFF_ID });
-                console.log('LIFF初期化完了');
-
-                // URLパラメータからtokenを取得
-                const urlParams = new URLSearchParams(window.location.search);
-                currentToken = urlParams.get('token');
+                log('接続テスト開始...');
+                log(`送信先URL: ${SERVER_URL}`);
                 
-                console.log('Token:', currentToken);
-                console.log('isInClient:', liff.isInClient());
-                console.log('isLoggedIn:', liff.isLoggedIn());
-
-                if (!currentToken) {
-                    throw new Error('企業識別トークンが見つかりません');
-                }
-
-                // ユーザー情報を取得
-                if (liff.isLoggedIn()) {
-                    userProfile = await liff.getProfile();
-                    console.log('プロフィール取得完了:', userProfile.displayName);
-                    showConsentStep();
-                } else {
-                    // ログインしていない場合はログインを促す
-                    liff.login();
-                }
-
-            } catch (error) {
-                console.error('LIFF初期化エラー:', error);
-                showError('初期化に失敗しました: ' + error.message);
-            }
-        }
-
-        // ステップ表示制御
-        function showStep(stepId) {
-            document.querySelectorAll('.step').forEach(step => {
-                step.classList.remove('active');
-            });
-            document.getElementById(stepId).classList.add('active');
-        }
-
-        function showConsentStep() {
-            // ユーザー情報を表示
-            const userInfoDiv = document.getElementById('userInfo');
-            userInfoDiv.innerHTML = `
-                <strong>LINEアカウント情報:</strong><br>
-                名前: ${userProfile.displayName}<br>
-                ユーザーID: ${userProfile.userId.substring(0, 8)}...
-            `;
-            
-            showStep('step-consent');
-        }
-
-        function showError(message) {
-            document.getElementById('errorMessage').textContent = message;
-            showStep('step-error');
-        }
-
-        // 同意ボタンの処理
-        document.getElementById('consentBtn').addEventListener('click', async function() {
-            showStep('step-processing');
-            
-            try {
-                console.log('サーバーへの送信開始...');
-                console.log('送信先:', SERVER_URL);
-                console.log('送信データ:', {
-                    token: currentToken,
-                    lineUserId: userProfile.userId,
-                    displayName: userProfile.displayName
-                });
+                const testData = {
+                    test: true,
+                    message: 'Hello from LIFF',
+                    timestamp: new Date().toISOString()
+                };
                 
-                // サーバーにユーザー情報を送信
+                log(`送信データ: ${JSON.stringify(testData)}`);
+                
                 const response = await fetch(SERVER_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        token: currentToken,
-                        lineUserId: userProfile.userId,
-                        displayName: userProfile.displayName,
-                        pictureUrl: userProfile.pictureUrl
-                    })
+                    body: JSON.stringify(testData)
                 });
-
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-
-                if (!response.ok) {
-                    const responseText = await response.text();
-                    console.error('Response error:', responseText);
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
+                
+                log(`Response Status: ${response.status}`);
+                log(`Response OK: ${response.ok}`);
+                
                 const result = await response.json();
-                console.log('Response data:', result);
+                log(`Response Data: ${JSON.stringify(result)}`);
                 
                 if (result.success) {
-                    // フォームURLを保存
-                    localStorage.setItem('formUrl', result.formUrl);
-                    localStorage.setItem('companyName', result.companyName);
-                    showStep('step-complete');
+                    log('✅ 接続テスト成功！');
                 } else {
-                    throw new Error(result.error || '登録に失敗しました');
+                    log('❌ サーバーエラー');
                 }
-
+                
             } catch (error) {
-                console.error('送信エラー:', error);
-                showError('登録に失敗しました: ' + error.message);
+                log(`❌ 接続エラー: ${error.message}`);
             }
-        });
-
-        // 続行ボタンの処理
-        document.getElementById('continueBtn').addEventListener('click', function() {
-            const formUrl = localStorage.getItem('formUrl');
-            if (formUrl) {
-                // LIFFブラウザ内でフォームを開く
-                if (liff.isInClient()) {
-                    liff.openWindow({
-                        url: formUrl,
-                        external: false
-                    });
-                } else {
-                    // 外部ブラウザの場合は新しいタブで開く
-                    window.open(formUrl, '_blank');
-                }
-            } else {
-                showError('フォームURLが見つかりません');
-            }
-        });
-
-        // ページ読み込み時の初期化
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        // ページ読み込み時の基本情報表示
         window.addEventListener('load', function() {
-            // LIFFが利用可能かチェック
-            if (typeof liff === 'undefined') {
-                showError('LIFFが利用できません。LINEアプリで開いてください。');
-                return;
-            }
-            
-            initializeLiff();
+            log('ページ読み込み完了');
+            log(`User Agent: ${navigator.userAgent}`);
+            log(`LIFF Available: ${typeof liff !== 'undefined'}`);
         });
     </script>
 </body>
