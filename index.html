@@ -221,9 +221,9 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <script>
-        // 設定
+        // 設定（新しいデプロイURL）
         const LIFF_ID = '2007941209-AE20r8rK';
-        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbybNtskpNQwGaNydA5j0OSu4YFIVlaHUv9IOhC0hOw0Mjtap5qnqoo59iDjthJtdFdLtg/exec';
+        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbz7znu7Kl-smZ-7AlGsPxGaG2ReRE2SoO1-v0I6i9Ch_9ZEpaRIPMbO0EfpFl3w3pY54g/exec';
 
         let currentToken = null;
         let userProfile = null;
@@ -259,7 +259,7 @@
                 Token: ${currentToken || 'なし'}<br>
                 User Agent: ${navigator.userAgent.includes('Line') ? 'LINEアプリ内' : '外部ブラウザ'}<br>
                 Server URL: ${SERVER_URL}<br>
-                CORS修正: text/plain Content-Type 使用
+                通信方式: GET方式
             `;
         }
 
@@ -324,12 +324,12 @@
             showStep('step-error');
         }
 
-        // 同意ボタンの処理（CORS修正版）
+        // 同意ボタンの処理（GET方式）
         document.getElementById('consentBtn').addEventListener('click', async function() {
             showStep('step-processing');
             
             try {
-                debugLog('サーバーへの送信開始（CORS修正版）...');
+                debugLog('サーバーへの送信開始（GET方式）...');
                 debugLog(`送信先: ${SERVER_URL}`);
                 
                 const sendData = {
@@ -337,19 +337,22 @@
                     lineUserId: userProfile.userId,
                     displayName: userProfile.displayName,
                     pictureUrl: userProfile.pictureUrl,
-                    corsFixApplied: true
+                    method: 'GET'
                 };
                 
                 debugLog(`送信データ: ${JSON.stringify(sendData)}`);
                 
-                // CORS修正: text/plain Content-Type を使用
-                const response = await fetch(SERVER_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8',
-                    },
-                    body: JSON.stringify(sendData)
+                // GET方式でパラメータ送信
+                const params = new URLSearchParams({
+                    action: 'register',
+                    data: JSON.stringify(sendData)
                 });
+                
+                const requestUrl = `${SERVER_URL}?${params.toString()}`;
+                debugLog(`Request URL: ${requestUrl.substring(0, 100)}...`);
+                
+                // GETリクエストで送信
+                const response = await fetch(requestUrl);
 
                 debugLog(`Response status: ${response.status}`);
                 debugLog(`Response ok: ${response.ok}`);
@@ -364,7 +367,7 @@
                 debugLog(`Response data: ${JSON.stringify(result)}`);
                 
                 if (result.success) {
-                    debugLog('登録成功！CORS問題が解決されました');
+                    debugLog('登録成功！GET方式で動作しました');
                     // フォームURLを保存
                     localStorage.setItem('formUrl', result.formUrl || '#');
                     localStorage.setItem('companyName', result.companyName || '企業名不明');
