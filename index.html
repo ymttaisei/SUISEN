@@ -159,13 +159,13 @@
     
     <div class="container">
         <div class="logo">
-            <h1>🚀 キャリア支援</h1>
+            <h1>キャリア支援</h1>
             <p>あなたの次のステップをサポート</p>
         </div>
 
         <!-- デバッグ情報 -->
         <div class="debug-info" id="debugInfo">
-            <strong>🔍 システム情報:</strong><br>
+            <strong>システム情報:</strong><br>
             <div id="debugDetails"></div>
         </div>
 
@@ -201,7 +201,7 @@
 
         <!-- Step 4: 完了 -->
         <div class="step" id="step-complete">
-            <h2>✅ LINE連携完了</h2>
+            <h2>LINE連携完了</h2>
             <div class="success">
                 <p>LINE連携が完了しました！<br>
                 詳細情報の入力を続けてください。</p>
@@ -211,7 +211,7 @@
 
         <!-- エラー表示 -->
         <div class="step" id="step-error">
-            <h2>❌ エラー</h2>
+            <h2>エラー</h2>
             <div class="error" id="errorMessage"></div>
             <button class="btn" onclick="location.reload()">再試行</button>
         </div>
@@ -223,7 +223,7 @@
     <script>
         // 設定
         const LIFF_ID = '2007941209-AE20r8rK';
-        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbwFn6NLAAhHKy3J1HH8Z5Wga-4fLLW9gXNdUoVfSH_ju4imLvfiqp4rOegCCCU1Vd3vNA/exec';
+        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbybNtskpNQwGaNydA5j0OSu4YFIVlaHUv9IOhC0hOw0Mjtap5qnqoo59iDjthJtdFdLtg/exec';
 
         let currentToken = null;
         let userProfile = null;
@@ -258,7 +258,8 @@
                 URL: ${location.href}<br>
                 Token: ${currentToken || 'なし'}<br>
                 User Agent: ${navigator.userAgent.includes('Line') ? 'LINEアプリ内' : '外部ブラウザ'}<br>
-                Server URL: ${SERVER_URL}
+                Server URL: ${SERVER_URL}<br>
+                CORS修正: text/plain Content-Type 使用
             `;
         }
 
@@ -323,28 +324,29 @@
             showStep('step-error');
         }
 
-        // 同意ボタンの処理
+        // 同意ボタンの処理（CORS修正版）
         document.getElementById('consentBtn').addEventListener('click', async function() {
             showStep('step-processing');
             
             try {
-                debugLog('サーバーへの送信開始...');
+                debugLog('サーバーへの送信開始（CORS修正版）...');
                 debugLog(`送信先: ${SERVER_URL}`);
                 
                 const sendData = {
                     token: currentToken,
                     lineUserId: userProfile.userId,
                     displayName: userProfile.displayName,
-                    pictureUrl: userProfile.pictureUrl
+                    pictureUrl: userProfile.pictureUrl,
+                    corsFixApplied: true
                 };
                 
                 debugLog(`送信データ: ${JSON.stringify(sendData)}`);
                 
-                // サーバーにユーザー情報を送信
+                // CORS修正: text/plain Content-Type を使用
                 const response = await fetch(SERVER_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'text/plain;charset=utf-8',
                     },
                     body: JSON.stringify(sendData)
                 });
@@ -362,7 +364,7 @@
                 debugLog(`Response data: ${JSON.stringify(result)}`);
                 
                 if (result.success) {
-                    debugLog('登録成功！');
+                    debugLog('登録成功！CORS問題が解決されました');
                     // フォームURLを保存
                     localStorage.setItem('formUrl', result.formUrl || '#');
                     localStorage.setItem('companyName', result.companyName || '企業名不明');
