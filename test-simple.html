@@ -3,30 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超シンプル LIFF テスト</title>
+    <title>CORS修正版 LIFF テスト</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
         .btn { padding: 15px 20px; background: #00B900; color: white; border: none; border-radius: 5px; margin: 10px; }
         .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
+        .success { background: #e6ffe6; color: #060; }
+        .error { background: #ffe6e6; color: #d00; }
     </style>
 </head>
 <body>
-    <h1>🧪 超シンプル LIFF テスト</h1>
+    <h1>CORS修正版 LIFF テスト</h1>
     
-    <button class="btn" onclick="testConnection()">接続テスト</button>
+    <button class="btn" onclick="testConnection()">接続テスト (text/plain)</button>
     <button class="btn" onclick="clearLogs()">ログクリア</button>
     
     <div id="logs"></div>
 
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbwFn6NLAAhHKy3J1HH8Z5Wga-4fLLW9gXNdUoVfSH_ju4imLvfiqp4rOegCCCU1Vd3vNA/exec';
+        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbybNtskpNQwGaNydA5j0OSu4YFIVlaHUv9IOhC0hOw0Mjtap5qnqoo59iDjthJtdFdLtg/exec';
         
-        function log(message) {
+        function log(message, type = 'normal') {
             const timestamp = new Date().toLocaleTimeString();
             const logsDiv = document.getElementById('logs');
             const logDiv = document.createElement('div');
-            logDiv.className = 'log';
+            logDiv.className = `log ${type}`;
             logDiv.textContent = `[${timestamp}] ${message}`;
             logsDiv.appendChild(logDiv);
             console.log(message);
@@ -34,21 +36,23 @@
         
         async function testConnection() {
             try {
-                log('接続テスト開始...');
+                log('CORS修正版接続テスト開始...');
                 log(`送信先URL: ${SERVER_URL}`);
                 
                 const testData = {
                     test: true,
-                    message: 'Hello from LIFF',
-                    timestamp: new Date().toISOString()
+                    message: 'Hello from LIFF (CORS fix)',
+                    timestamp: new Date().toISOString(),
+                    corsFixApplied: true
                 };
                 
                 log(`送信データ: ${JSON.stringify(testData)}`);
                 
+                // CORS修正: text/plain を使用
                 const response = await fetch(SERVER_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'text/plain;charset=utf-8',
                     },
                     body: JSON.stringify(testData)
                 });
@@ -56,17 +60,22 @@
                 log(`Response Status: ${response.status}`);
                 log(`Response OK: ${response.ok}`);
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
-                log(`Response Data: ${JSON.stringify(result)}`);
+                log(`Response Data: ${JSON.stringify(result)}`, 'success');
                 
                 if (result.success) {
-                    log('✅ 接続テスト成功！');
+                    log('接続テスト成功！CORS問題が解決されました', 'success');
                 } else {
-                    log('❌ サーバーエラー');
+                    log('サーバーエラーが発生しました', 'error');
                 }
                 
             } catch (error) {
-                log(`❌ 接続エラー: ${error.message}`);
+                log(`接続エラー: ${error.message}`, 'error');
+                console.error('Detailed error:', error);
             }
         }
         
@@ -76,9 +85,10 @@
         
         // ページ読み込み時の基本情報表示
         window.addEventListener('load', function() {
-            log('ページ読み込み完了');
+            log('ページ読み込み完了 (CORS修正版)');
             log(`User Agent: ${navigator.userAgent}`);
             log(`LIFF Available: ${typeof liff !== 'undefined'}`);
+            log('修正内容: Content-Type を text/plain;charset=utf-8 に変更');
         });
     </script>
 </body>
