@@ -87,6 +87,16 @@
             cursor: not-allowed;
         }
         
+        .btn.secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #dee2e6;
+        }
+        
+        .btn.secondary:hover {
+            background: #e9ecef;
+        }
+        
         .consent-text {
             background: #f8f9fa;
             padding: 15px;
@@ -127,6 +137,39 @@
             color: #00B900;
         }
         
+        .company-info {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #0066cc;
+        }
+        
+        .friend-add-section {
+            background: #f0f8e8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #00B900;
+        }
+        
+        .friend-add-section h3 {
+            color: #00B900;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        
+        .friend-benefits {
+            text-align: left;
+            margin: 15px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .friend-benefits li {
+            margin: 8px 0;
+        }
+        
         .debug-toggle {
             position: fixed;
             top: 10px;
@@ -151,6 +194,17 @@
         
         .debug-info.show {
             display: block;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            margin-top: 0;
         }
     </style>
 </head>
@@ -180,6 +234,7 @@
         <!-- Step 2: 同意確認 -->
         <div class="step" id="step-consent">
             <h2>サービス利用について</h2>
+            <div id="companyInfo" class="company-info"></div>
             <div id="userInfo" class="user-info"></div>
             <div class="consent-text">
                 <strong>個人情報の取り扱いについて</strong><br>
@@ -199,13 +254,46 @@
             </div>
         </div>
 
-        <!-- Step 4: 完了 -->
-        <div class="step" id="step-complete">
-            <h2>LINE連携完了</h2>
+        <!-- Step 4: 友だち追加推奨 -->
+        <div class="step" id="step-friend-add">
+            <h2>🎉 LINE連携完了！</h2>
             <div class="success">
-                <p>LINE連携が完了しました！<br>
-                詳細情報の入力を続けてください。</p>
+                <p>基本登録が完了しました！</p>
             </div>
+            
+            <div class="friend-add-section">
+                <h3>🤖 公式アカウントを友だち追加</h3>
+                <p>継続的なキャリア支援を受けるため、公式アカウントの友だち追加をお勧めします。</p>
+                
+                <ul class="friend-benefits">
+                    <li>📧 求人情報の定期配信</li>
+                    <li>💬 キャリア相談チャット</li>
+                    <li>📈 転職市場の最新情報</li>
+                    <li>🎯 あなたに合った企業の紹介</li>
+                </ul>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn" id="addFriendBtn">📱 友だち追加する</button>
+                <button class="btn secondary" id="skipFriendBtn">後で追加</button>
+            </div>
+        </div>
+
+        <!-- Step 5: 詳細フォーム案内 -->
+        <div class="step" id="step-form">
+            <h2>詳細情報の入力</h2>
+            <div class="success">
+                <p>より良いキャリア支援のため、詳細情報をご入力ください。</p>
+            </div>
+            
+            <div class="user-info">
+                <strong>📋 入力内容:</strong><br>
+                • 職歴・経験<br>
+                • 希望条件<br>
+                • スキル・資格<br>
+                • 転職時期・希望
+            </div>
+
             <button class="btn" id="continueBtn">詳細情報を入力する</button>
         </div>
 
@@ -221,12 +309,15 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <script>
-        // 設定（新しいデプロイURL）
+        // 設定
         const LIFF_ID = '2007941209-AE20r8rK';
-        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbynx_mkPCvh8qgIUZQlJj6OjKGXN7l79YcgIAS6Eg6FlSLokrYzenMlI1fg-lYLWpFXQw/exec';
+        const SERVER_URL = 'https://script.google.com/macros/s/AKfycbxazpABc_3eu1j2Z8MjkgQTM9fIwjFBSu8jFbUZGYFTopFw_m2kA-M6rlftW3XE3_Zm6Q/exec';
 
         let currentToken = null;
         let userProfile = null;
+        let companyName = null;
+        let formUrl = null;
+        let lineOfficialUrl = null;
         let debugMode = false;
 
         // デバッグ関数
@@ -259,7 +350,7 @@
                 Token: ${currentToken || 'なし'}<br>
                 User Agent: ${navigator.userAgent.includes('Line') ? 'LINEアプリ内' : '外部ブラウザ'}<br>
                 Server URL: ${SERVER_URL}<br>
-                通信方式: GET方式
+                通信方式: GET方式（シームレスリダイレクト対応）
             `;
         }
 
@@ -316,6 +407,10 @@
                 環境: ${liff.isInClient() ? 'LINEアプリ内' : '外部ブラウザ'}
             `;
             
+            // 企業情報プレースホルダー
+            const companyInfoDiv = document.getElementById('companyInfo');
+            companyInfoDiv.innerHTML = '<strong>📋 企業:</strong> 確認中...';
+            
             showStep('step-consent');
         }
 
@@ -337,7 +432,7 @@
                     lineUserId: userProfile.userId,
                     displayName: userProfile.displayName,
                     pictureUrl: userProfile.pictureUrl,
-                    method: 'GET'
+                    method: 'GET_SEAMLESS'
                 };
                 
                 debugLog(`送信データ: ${JSON.stringify(sendData)}`);
@@ -367,11 +462,14 @@
                 debugLog(`Response data: ${JSON.stringify(result)}`);
                 
                 if (result.success) {
-                    debugLog('登録成功！GET方式で動作しました');
-                    // フォームURLを保存
-                    localStorage.setItem('formUrl', result.formUrl || '#');
-                    localStorage.setItem('companyName', result.companyName || '企業名不明');
-                    showStep('step-complete');
+                    debugLog('登録成功！シームレスリダイレクト版で動作しました');
+                    
+                    // レスポンスデータを保存
+                    companyName = result.companyName || '企業名不明';
+                    formUrl = result.formUrl || '#';
+                    lineOfficialUrl = result.lineOfficialUrl || 'https://line.me/R/ti/p/@785tzzjg';
+                    
+                    showFriendAddStep();
                 } else {
                     throw new Error(result.error || '登録に失敗しました');
                 }
@@ -382,9 +480,49 @@
             }
         });
 
+        // 友だち追加ステップ表示
+        function showFriendAddStep() {
+            showStep('step-friend-add');
+        }
+
+        // 友だち追加ボタンの処理
+        document.getElementById('addFriendBtn').addEventListener('click', function() {
+            debugLog('友だち追加ボタンクリック');
+            
+            if (lineOfficialUrl) {
+                // LIFFブラウザ内で友だち追加URLを開く
+                if (liff.isInClient()) {
+                    liff.openWindow({
+                        url: lineOfficialUrl,
+                        external: false
+                    });
+                } else {
+                    // 外部ブラウザの場合は新しいタブで開く
+                    window.open(lineOfficialUrl, '_blank');
+                }
+                
+                // 少し待ってからフォームステップへ
+                setTimeout(() => {
+                    showFormStep();
+                }, 2000);
+            } else {
+                showFormStep();
+            }
+        });
+
+        // 友だち追加スキップボタンの処理
+        document.getElementById('skipFriendBtn').addEventListener('click', function() {
+            debugLog('友だち追加スキップ');
+            showFormStep();
+        });
+
+        // フォームステップ表示
+        function showFormStep() {
+            showStep('step-form');
+        }
+
         // 続行ボタンの処理
         document.getElementById('continueBtn').addEventListener('click', function() {
-            const formUrl = localStorage.getItem('formUrl');
             if (formUrl && formUrl !== '#') {
                 // LIFFブラウザ内でフォームを開く
                 if (liff.isInClient()) {
